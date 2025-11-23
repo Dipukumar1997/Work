@@ -29,6 +29,8 @@ import TeacherDashboard from './pages/Teacher/TeacherDashboard';
 import TeacherProfile from './pages/Teacher/Profile';
 import TeacherStudents from './pages/Teacher/Students';
 import PaymentSuccess from './pages/Student/PaymentSuccess';
+import AdminRegister from './pages/AdminRegister';
+import IPWhitelist from './pages/Admin/IPWhitelist';
 
 function App() {
   return (
@@ -140,6 +142,14 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/admin/ip-whitelist" element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <IPWhitelist />
+            </ProtectedRoute>
+          } 
+          />
+
+          <Route path="/register-admin" element={<AdminRegister />} />
           <Route
             path="/student/payment"
             element={

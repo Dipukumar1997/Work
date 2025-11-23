@@ -14,61 +14,6 @@ const generateRollNumber = async (className) => {
   const count = await Student.countDocuments({ class: className });
   return `${year}${className}${String(count + 1).padStart(4, '0')}`;
 };
-
-// @desc    Get all students
-// @route   GET /api/admin/students
-// @access  Private (Admin)
-// export const getAllStudents = async (req, res) => {
-//   try {
-//     const students = await Student.find()
-//       .populate('userId', 'email')
-//       .populate('courseId');
-
-//     res.status(200).json({
-//       success: true,
-//       count: students.length,
-//       students
-//     });
-//   } catch (error) {
-//     res.status(500).json({
-//       success: false,
-//       message: 'Server error',
-//       error: error.message
-//     });
-//   }
-// };
-
-// // @desc    Get single student
-// // @route   GET /api/admin/students/:id
-// // @access  Private (Admin)
-// export const getStudent = async (req, res) => {
-//   try {
-//     const student = await Student.findById(req.params.id)
-//       .populate('userId')
-//       .populate('courseId')
-//       .populate('attendanceCriteria.subjectId')
-//       .populate('attendanceCriteria.teacherId');
-
-//     if (!student) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'Student not found'
-//       });
-//     }
-
-//     res.status(200).json({
-//       success: true,
-//       student
-//     });
-//   } catch (error) {
-//     res.status(500).json({
-//       success: false,
-//       message: 'Server error',
-//       error: error.message
-//     });
-//   }
-// };
-
 // @desc    Add new student
 // @route   POST /api/admin/students
 // @access  Private (Admin)

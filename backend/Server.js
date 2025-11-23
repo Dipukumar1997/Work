@@ -5,7 +5,7 @@ import connectDB from './config/db.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 // import express from 'express';
 import path from 'path';
-
+import ipWhitelistRoutes from './routes/ipWhitelistRoutes.js';
 
 // Import routes
 import authRoutes from './routes/authRoutes.js';
@@ -42,6 +42,7 @@ app.use('/api/student', studentRoutes);
 app.use('/api/teacher', teacherRoutes);
 app.use('/api/admission', admissionRoutes);
 app.use('/api/payment', paymentRoutes);
+app.use('/api/ip-whitelist', ipWhitelistRoutes);
 // app.use('/receipts', express.static('public/receipts'));
 app.use('/receipts', express.static(path.join(process.cwd(), 'public/receipts')));
 // Test route
