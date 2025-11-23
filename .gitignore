@@ -3,3 +3,5 @@ frontend/node_modules
 ../node_modules
 *.deb
 mongodb-compass_1.46.10_amd64.deb
+backend/.env
+frontend/.env
