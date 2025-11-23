@@ -56,6 +56,12 @@ const admissionSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
+  // Add this field to your Admission schema
+rollNumber: {
+  type: String,
+  default: null
+},
+
   assignedRollNumber: String,
   admissionPdfUrl: String
 }, {

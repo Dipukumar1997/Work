@@ -712,6 +712,11 @@ import Subject from '../models/Subject.js';
 import Application from '../models/Application.js';
 import { generateAdmissionPDF } from '../utils/pdfGenerator.js';
 
+// import Student from '../models/Student.js';
+// import User from '../models/User.js';
+// import Admission from '../models/Admission.js';
+import bcrypt from 'bcryptjs';
+
 // Generate unique roll number
 const generateRollNumber = async (className) => {
   const year = new Date().getFullYear();
@@ -1223,11 +1228,85 @@ export const getAllAdmissions = async (req, res) => {
 // @desc    Approve admission
 // @route   PUT /api/admin/admissions/:id/approve
 // @access  Private (Admin)
+
+// export const approveAdmission = async (req, res) => {
+//   try {
+//     const { classAssigned, courseId } = req.body;
+    
+//     const admission = await Admission.findById(req.params.id);
+//     if (!admission) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Admission not found'
+//       });
+//     }
+
+//     // Generate roll number
+//     const rollNumber = await generateRollNumber(classAssigned);
+//     const tempPassword = Math.random().toString(36).slice(-8);
+
+//     // Create user
+//     const user = await User.create({
+//       email: admission.basicDetails.email,
+//       password: tempPassword,
+//       role: 'student'
+//     });
+
+//     // Create student
+//     const student = await Student.create({
+//       userId: user._id,
+//       rollNumber,
+//       firstName: admission.basicDetails.firstName,
+//       lastName: admission.basicDetails.lastName,
+//       class: classAssigned,
+//       address: {},
+//       courseId,
+//       documents: admission.documents
+//     });
+
+//     // Update admission status
+//     admission.status = 'approved';
+//     admission.approvedBy = req.user.id;
+//     admission.assignedRollNumber = rollNumber;
+    
+//     // Generate admission PDF (you'll implement this later)
+//     // const pdfUrl = await generateAdmissionPDF(admission, student);
+//     // admission.admissionPdfUrl = pdfUrl;
+    
+//     await admission.save();
+
+//     res.status(200).json({
+//       success: true,
+//       message: 'Admission approved successfully',
+//       credentials: {
+//         email: admission.basicDetails.email,
+//         password: tempPassword,
+//         rollNumber
+//       }
+//     });
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       message: 'Server error',
+//       error: error.message
+//     });
+//   }
+// };
+
+
+
+
+
+// @desc    Approve admission and create student account
+// @route   PUT /api/admin/admissions/:id/approve
+// @access  Private (Admin)
 export const approveAdmission = async (req, res) => {
   try {
+    const { id } = req.params;
     const { classAssigned, courseId } = req.body;
-    
-    const admission = await Admission.findById(req.params.id);
+
+    // Find admission
+    const admission = await Admission.findById(id);
     if (!admission) {
       return res.status(404).json({
         success: false,
@@ -1235,50 +1314,80 @@ export const approveAdmission = async (req, res) => {
       });
     }
 
-    // Generate roll number
-    const rollNumber = await generateRollNumber(classAssigned);
-    const tempPassword = Math.random().toString(36).slice(-8);
+    if (admission.status !== 'submitted') {
+      return res.status(400).json({
+        success: false,
+        message: 'Admission is not in submitted status'
+      });
+    }
 
-    // Create user
-    const user = await User.create({
+    // Generate Roll Number (Format: YEAR + CLASS + UNIQUE_NUMBER)
+    const year = new Date().getFullYear();
+    const classCode = classAssigned.toString().padStart(2, '0');
+    
+    // Find last roll number for this year and class
+    const lastStudent = await Student.findOne({
+      rollNumber: new RegExp(`^${year}${classCode}`)
+    }).sort({ rollNumber: -1 });
+
+    let rollNumber;
+    if (lastStudent) {
+      const lastNumber = parseInt(lastStudent.rollNumber.slice(-5));
+      const newNumber = (lastNumber + 1).toString().padStart(5, '0');
+      rollNumber = `${year}${classCode}${newNumber}`;
+    } else {
+      rollNumber = `${year}${classCode}00001`;
+    }
+
+    // Generate default password (rollnumber or admission ID)
+    const defaultPassword = rollNumber; // Or admission.applicationId
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
+    // Create User account for student
+    const user = new User({
       email: admission.basicDetails.email,
-      password: tempPassword,
-      role: 'student'
+      password: hashedPassword,
+      role: 'student',
+      isFirstLogin: true
     });
+    await user.save();
 
-    // Create student
-    const student = await Student.create({
+    // Create Student record
+    const student = new Student({
       userId: user._id,
-      rollNumber,
       firstName: admission.basicDetails.firstName,
       lastName: admission.basicDetails.lastName,
+      rollNumber: rollNumber,
       class: classAssigned,
-      address: {},
-      courseId,
+      dob: admission.basicDetails.dob,
+      phone: admission.basicDetails.phone,
+      admissionDate: new Date(),
+      address: {
+        city: '',
+        country: ''
+      },
+      courseId: courseId || null,
       documents: admission.documents
     });
+    await student.save();
 
     // Update admission status
     admission.status = 'approved';
-    admission.approvedBy = req.user.id;
-    admission.assignedRollNumber = rollNumber;
-    
-    // Generate admission PDF (you'll implement this later)
-    // const pdfUrl = await generateAdmissionPDF(admission, student);
-    // admission.admissionPdfUrl = pdfUrl;
-    
+    admission.rollNumber = rollNumber;
     await admission.save();
 
     res.status(200).json({
       success: true,
       message: 'Admission approved successfully',
-      credentials: {
-        email: admission.basicDetails.email,
-        password: tempPassword,
-        rollNumber
-      }
+      rollNumber: rollNumber,
+      defaultPassword: defaultPassword, // Send to admin to inform student
+      studentId: student._id
     });
+
   } catch (error) {
+    console.error('Approve Admission Error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -1286,6 +1395,8 @@ export const approveAdmission = async (req, res) => {
     });
   }
 };
+
+
 
 // @desc    Reject admission
 // @route   PUT /api/admin/admissions/:id/reject
