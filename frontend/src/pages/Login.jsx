@@ -1073,7 +1073,7 @@ const Login = () => {
   }, []);
 
   const generateCaptcha = () => {
-    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
     let captcha = '';
     for (let i = 0; i < 6; i++) {
       captcha += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -1082,35 +1082,77 @@ const Login = () => {
     setCredentials({ ...credentials, captcha: '' });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  // const handleSubmit = async (e) => {
+  //   e.preventDefault();
+  //   console.log(" credentials.captcha " + credentials.captcha)
+  //   console.log("generatedCaptcha " + generatedCaptcha)
+  //   if (credentials.captcha !== generatedCaptcha) {
+  //     alert('❌ Invalid CAPTCHA. Please try again.');
+  //     generateCaptcha();
+  //     return;
+  //   }
 
-    if (credentials.captcha !== generatedCaptcha) {
-      alert('❌ Invalid CAPTCHA. Please try again.');
-      generateCaptcha();
-      return;
-    }
+  //   setLoading(true);
+  //   try {
+  //     const isRollNumber = /^\d+$/.test(credentials.username);
+  //     const loginData = isRollNumber 
+  //       ? { rollNumber: credentials.username, password: credentials.password }
+  //       : { email: credentials.username, password: credentials.password };
 
-    setLoading(true);
-    try {
-      const isRollNumber = /^\d+$/.test(credentials.username);
-      const loginData = isRollNumber 
-        ? { rollNumber: credentials.username, password: credentials.password }
-        : { email: credentials.username, password: credentials.password };
-
-      await login(loginData);
+  //     await login(loginData);
       
-      const userRole = localStorage.getItem('userRole');
-      if (userRole === 'admin') navigate('/admin/dashboard');
-      else if (userRole === 'teacher') navigate('/teacher/dashboard');
-      else navigate('/student/dashboard');
-    } catch (error) {
-      alert('Login failed: ' + (error.response?.data?.message || error.message));
-      generateCaptcha();
-    } finally {
-      setLoading(false);
+  //     const userRole = localStorage.getItem('userRole');
+  //     if (userRole === 'admin') navigate('/admin/dashboard');
+  //     else if (userRole === 'teacher') navigate('/teacher/dashboard');
+  //     else navigate('/student/dashboard');
+  //   } catch (error) {
+  //     alert('Login failed: ' + (error.response?.data?.message || error.message));
+  //     generateCaptcha();
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
+  const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  if (credentials.captcha !== generatedCaptcha) {
+    alert('❌ Invalid CAPTCHA. Please try again.');
+    generateCaptcha();
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const isRollNumber = /^\d+$/.test(credentials.username);
+    const loginData = isRollNumber 
+      ? { rollNumber: credentials.username, password: credentials.password }
+      : { email: credentials.username, password: credentials.password };
+
+    const response = await login(loginData);
+    
+    // Get role from response
+    const userRole = response?.user?.role || localStorage.getItem('userRole');
+    
+    console.log('Login successful, role:', userRole); // Debug
+    
+    // Navigate based on role
+    if (userRole === 'admin') {
+      navigate('/admin/dashboard');
+    } else if (userRole === 'teacher') {
+      navigate('/teacher/dashboard');
+    } else if (userRole === 'student') {
+      navigate('/student/dashboard');
+    } else {
+      navigate('/'); // Fallback
     }
-  };
+  } catch (error) {
+    alert('Login failed: ' + (error.response?.data?.message || error.message));
+    generateCaptcha();
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div style={styles.page}>

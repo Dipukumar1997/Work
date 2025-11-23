@@ -34,6 +34,14 @@ const studentSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Subject'
   },
+   editPermissions: {
+    generalInfo: { type: Boolean, default: false },
+    addressDetails: { type: Boolean, default: false },
+    personalInfo: { type: Boolean, default: false },
+    examScores: { type: Boolean, default: false },
+    scholarshipDetails: { type: Boolean, default: false },
+    onlinePayment: { type: Boolean, default: false }
+  },
   admissionDate: {
     type: Date,
     default: Date.now

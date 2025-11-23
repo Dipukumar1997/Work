@@ -9,7 +9,9 @@ import {
   downloadAdmitCard,
   getMarksheets,
   sendApplication,
-  getApplications
+  getApplications,
+  getUnpaidFees,
+  processPayment
 } from '../controllers/studentController.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { authorizeRoles } from '../middleware/roleAuth.js';
@@ -19,6 +21,8 @@ const router = express.Router();
 router.use(authenticateToken);
 router.use(authorizeRoles('student'));
 
+router.get('/unpaid-fees', getUnpaidFees);
+router.post('/payment', processPayment);
 router.get('/profile', getStudentProfile);
 router.get('/documents', getDocuments);
 router.post('/documents/request-update', requestDocumentUpdate);

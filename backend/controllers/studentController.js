@@ -3,35 +3,42 @@ import User from '../models/User.js';
 import Exam from '../models/Exam.js';
 import Application from '../models/Application.js';
 
+
+
+// import Student from '../models/Student.js';
+import Payment from '../models/Payment.js';
+import FeeStructure from '../models/FeeStructure.js';
+
+
 // @desc    Get student profile
 // @route   GET /api/student/profile
 // @access  Private (Student)
-export const getStudentProfile = async (req, res) => {
-  try {
-    const student = await Student.findOne({ userId: req.user.id })
-      .populate('courseId')
-      .populate('attendanceCriteria.subjectId')
-      .populate('attendanceCriteria.teacherId', 'firstName lastName');
+// export const getStudentProfile = async (req, res) => {
+//   try {
+//     const student = await Student.findOne({ userId: req.user.id })
+//       .populate('courseId')
+//       .populate('attendanceCriteria.subjectId')
+//       .populate('attendanceCriteria.teacherId', 'firstName lastName');
 
-    if (!student) {
-      return res.status(404).json({
-        success: false,
-        message: 'Student profile not found'
-      });
-    }
+//     if (!student) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Student profile not found'
+//       });
+//     }
 
-    res.status(200).json({
-      success: true,
-      student
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
-  }
-};
+//     res.status(200).json({
+//       success: true,
+//       student
+//     });
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       message: 'Server error',
+//       error: error.message
+//     });
+//   }
+// };
 
 // @desc    Get student documents
 // @route   GET /api/student/documents
@@ -85,22 +92,22 @@ export const requestDocumentUpdate = async (req, res) => {
 // @desc    Get payment history
 // @route   GET /api/student/payment-history
 // @access  Private (Student)
-export const getPaymentHistory = async (req, res) => {
-  try {
-    const student = await Student.findOne({ userId: req.user.id });
+// export const getPaymentHistory = async (req, res) => {
+//   try {
+//     const student = await Student.findOne({ userId: req.user.id });
     
-    res.status(200).json({
-      success: true,
-      paymentHistory: student.paymentHistory
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
-  }
-};
+//     res.status(200).json({
+//       success: true,
+//       paymentHistory: student.paymentHistory
+//     });
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       message: 'Server error',
+//       error: error.message
+//     });
+//   }
+// };
 
 // @desc    Make payment
 // @route   POST /api/student/payment
@@ -270,6 +277,210 @@ export const getApplications = async (req, res) => {
     res.status(200).json({
       success: true,
       applications
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+
+
+// @desc    Get unpaid monthly fees for student's class
+// @route   GET /api/student/unpaid-fees
+// @access  Private (Student)
+export const getUnpaidFees = async (req, res) => {
+  try {
+    // Get student info
+    const student = await Student.findOne({ userId: req.user._id });
+    
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student not found'
+      });
+    }
+
+    const currentYear = '2024-2025'; // You can make this dynamic
+
+    // Get all monthly fees for student's class
+    const allMonthlyFees = await FeeStructure.find({
+      class: student.class,
+      academicYear: currentYear,
+      isActive: true
+    }).sort({ month: 1 });
+
+    // Get already paid months
+    const paidPayments = await Payment.find({
+      studentId: student._id,
+      class: student.class,
+      paymentStatus: 'completed',
+      academicYear: currentYear
+    });
+
+    // Get paid months
+    const paidMonths = paidPayments.map(p => p.month);
+
+    // Filter unpaid months
+    const unpaidFees = allMonthlyFees
+      .filter(fee => !paidMonths.includes(fee.month))
+      .map(fee => ({
+        month: fee.month,
+        feeType: fee.feeType,
+        amount: fee.amount,
+        class: fee.class
+      }));
+
+    res.status(200).json({
+      success: true,
+      class: student.class,
+      unpaidFees: unpaidFees,
+      totalUnpaid: unpaidFees.length,
+      totalAmount: unpaidFees.reduce((sum, fee) => sum + fee.amount, 0)
+    });
+
+  } catch (error) {
+    console.error('Get Unpaid Fees Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Process monthly payment
+// @route   POST /api/student/payment
+// @access  Private (Student)
+export const processPayment = async (req, res) => {
+  try {
+    const { month, amount } = req.body;
+
+    if (!month || !amount) {
+      return res.status(400).json({
+        success: false,
+        message: 'Month and amount are required'
+      });
+    }
+
+    const student = await Student.findOne({ userId: req.user._id });
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student not found'
+      });
+    }
+
+    // Check if already paid for this month
+    const existingPayment = await Payment.findOne({
+      studentId: student._id,
+      month: month,
+      class: student.class,
+      paymentStatus: 'completed'
+    });
+
+    if (existingPayment) {
+      return res.status(400).json({
+        success: false,
+        message: `Payment for ${month} already completed`
+      });
+    }
+
+    // Generate transaction ID
+    const transactionId = `TXN${Date.now()}${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+
+    // Create payment record
+    const payment = await Payment.create({
+      studentId: student._id,
+      class: student.class,
+      month: month,
+      feeType: 'Monthly Tuition Fee',
+      amount: amount,
+      paymentStatus: 'completed',
+      transactionId: transactionId,
+      paymentDate: new Date(),
+      paymentMethod: 'online'
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Payment for ${month} successful`,
+      payment: {
+        transactionId: payment.transactionId,
+        month: payment.month,
+        amount: payment.amount,
+        date: payment.paymentDate
+      }
+    });
+
+  } catch (error) {
+    console.error('Payment Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Payment failed',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get payment history
+// @route   GET /api/student/payment-history
+// @access  Private (Student)
+export const getPaymentHistory = async (req, res) => {
+  try {
+    const student = await Student.findOne({ userId: req.user._id });
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student not found'
+      });
+    }
+
+    const payments = await Payment.find({
+      studentId: student._id,
+      paymentStatus: 'completed'
+    }).sort({ paymentDate: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: payments.length,
+      payments: payments.map(p => ({
+        month: p.month,
+        amount: p.amount,
+        transactionId: p.transactionId,
+        paymentDate: p.paymentDate,
+        class: p.class
+      }))
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+export const getStudentProfile = async (req, res) => {
+  try {
+    const student = await Student.findOne({ userId: req.user._id }).populate('userId');
+    
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      student
     });
   } catch (error) {
     res.status(500).json({

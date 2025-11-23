@@ -28,6 +28,7 @@ import StudentApplications from './pages/Student/Applications'; // Renamed
 import TeacherDashboard from './pages/Teacher/TeacherDashboard';
 import TeacherProfile from './pages/Teacher/Profile';
 import TeacherStudents from './pages/Teacher/Students';
+import PaymentSuccess from './pages/Student/PaymentSuccess';
 
 function App() {
   return (
@@ -165,6 +166,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route
             path="/teacher/profile"
             element={
